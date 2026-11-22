@@ -1,14 +1,8 @@
 "use strict";
 
-const catalog = Object.freeze({
+export const catalog = Object.freeze({
   original: "https://www.mercadolivre.com.br/arvore-de-natal-pinheiro-canadense-luxo-180-cm-800-galhos-verde-premium-greycom-180m-800-galhos-decoracao-5-bolas-de-brinde/p/MLB81086171?pdp_filters=item_id%3AMLB7895848428",
-  payments: "https://produto.mercadolivre.com.br/noindex/services/MLB7895848428/payments",
-  coupons: "https://www.mercadolivre.com.br/cupons/pdp",
-  seller: "https://www.mercadolivre.com.br/loja/greycom",
-  pickup: "https://envios.mercadolivre.com.br/shipping/agencies-map/pick-up",
-  pixPriceInCents: 20430,
   defaultVariant: "180-800",
-  availableQuantity: 50,
   variants: {
     "180-800": { height: "180", label: "1,80 m", branches: "800", photo: "oferta" },
     "180-650": {

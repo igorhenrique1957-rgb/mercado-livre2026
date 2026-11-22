@@ -1,4 +1,6 @@
-"use strict";
+import { catalog } from "./catalog.js";
+import { offer } from "./offer.mjs";
+import { setupCheckout } from "./checkout-ui.js";
 
 const find = (selector) => document.querySelector(selector);
 const formatMoney = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,7 +24,7 @@ let state = readState();
 let openPanelName = "";
 
 function clampQuantity(value, min = 1) {
-  return Math.max(min, Math.min(catalog.availableQuantity, Math.trunc(Number(value)) || 0));
+  return Math.max(min, Math.min(offer.maxQuantity, Math.trunc(Number(value)) || 0));
 }
 
 function readState() {
@@ -102,9 +104,10 @@ function renderVariant() {
   const hasOwnPhoto = !hasMainOffer && Boolean(variant.photo);
   const description = variant.label + " de altura · " + variant.branches + " galhos · Verde";
   find("#product-subtitle").textContent = description;
-  find("#buy-link").href = variant.url || catalog.original;
-  find("#buy-link").textContent = hasMainOffer ? "Comprar no Mercado Livre" : "Ver esta versão no Mercado Livre";
-  for (const selector of ["#default-rating", "#default-offer", "#gift-note", "#quantity", "#add-cart", "#stock-note"]) {
+  find("#buy-pix").hidden = !hasMainOffer;
+  find("#variant-link").hidden = hasMainOffer;
+  if (variant.url) find("#variant-link").href = variant.url;
+  for (const selector of ["#default-rating", "#default-offer", "#gift-note", "#quantity", "#add-cart", "#payment-note"]) {
     find(selector).hidden = !hasMainOffer;
   }
   find("#alternate-offer").hidden = hasMainOffer;
@@ -136,7 +139,7 @@ function updateQuantity(value) {
   const clamped = clampQuantity(value);
   quantity.value = clamped;
   find("#quantity-minus").disabled = clamped <= 1;
-  find("#quantity-plus").disabled = clamped >= catalog.availableQuantity;
+  find("#quantity-plus").disabled = clamped >= offer.maxQuantity;
 }
 
 function setLightbox(source, alt) {
@@ -159,37 +162,18 @@ function productItem(key, description, action) {
 }
 
 const panels = {
-  delivery: {
-    title: "Entrega e retirada",
-    body: () => '<p>O anúncio consultado oferecia <strong>frete grátis acima de R$ 19</strong>, entrega a partir de 2 de dezembro e retirada grátis em agência a partir de 14 de dezembro.</p>'
-      + '<p>O produto é armazenado e enviado pelo Full. Consulte as condições atuais para o seu CEP no anúncio.</p>'
-      + externalLink("Ver prazo no anúncio", catalog.original, "button button-primary")
-      + externalLink("Ver agências no mapa", catalog.pickup),
-  },
-  payments: {
-    title: "Meios de pagamento",
-    body: () => '<p>Na oferta consultada, <strong>R$ 204,30 no Pix</strong> (59% de desconto sobre R$ 500,00) ou <strong>R$ 227,00</strong> em outros meios.</p>'
-      + '<ul class="panel-list"><li>Mercado Parcelado</li><li>Cartões de crédito em até 3 vezes</li><li>Pix</li><li>Boleto bancário</li></ul>'
-      + '<p>O anúncio também oferecia <strong>20% de desconto com saldo no Mercado Pago</strong>, sujeito às condições da promoção original.</p>'
-      + externalLink("Conferir condições de pagamento", catalog.payments, "button button-primary"),
-  },
-  coupons: {
-    title: "Cupons da oferta",
-    body: () => '<p><strong>R$ 200,70</strong> era o valor com o cupom por seguir a loja Greycom. Confira a disponibilidade e as regras no anúncio.</p>'
-      + externalLink("Ver cupons disponíveis", catalog.coupons, "button button-primary")
-      + externalLink("Visitar a loja Greycom", catalog.seller),
-  },
   cart: {
     title: "Seu carrinho",
     body: () => {
       if (!state.cart) return "<p>Seu carrinho está vazio.</p>";
-      const total = formatMoney.format(state.cart * catalog.pixPriceInCents / 100);
+      const total = formatMoney.format(state.cart * offer.unitPriceInCents / 100);
       const item = productItem(catalog.defaultVariant,
         "<p>" + state.cart + (state.cart === 1 ? " unidade" : " unidades") + "</p>",
         '<button class="text-button" type="button" data-remove-cart>Remover</button>');
       return item + '<div class="cart-total"><span>Subtotal no Pix</span><span>' + total + "</span></div>"
-        + externalLink("Abrir oferta no Mercado Livre", catalog.original, "button button-primary")
-        + '<p class="fine-print">A quantidade acima fica salva neste navegador. Selecione a quantidade e confirme o preço e o estoque no Mercado Livre.</p>';
+        + '<button class="button button-primary" type="button" data-checkout="cart"'
+        + (checkoutClient.isAvailable() ? '' : ' disabled') + '>Finalizar com Pix</button>'
+        + '<p class="fine-print">Confira a quantidade, o valor e a entrega antes de pagar.</p>';
     },
   },
   favorites: {
@@ -197,7 +181,7 @@ const panels = {
     body: () => {
       if (!state.favorites.size) return "<p>Os pinheiros que você salvar aparecem aqui.</p>";
       return [...state.favorites].map((key) => productItem(key, "",
-        externalLink("Ver anúncio", catalog.variants[key].url || catalog.original)
+        externalLink("Ver anúncio original", catalog.variants[key].url || catalog.original)
         + ' · <button class="text-button" type="button" data-remove-favorite="' + key + '">Remover</button>')).join("");
     },
   },
@@ -281,11 +265,6 @@ async function loadRelated() {
     }
     const title = document.createElement("span");
     title.textContent = entry.title;
-    if (entry.price) {
-      const price = document.createElement("strong");
-      price.textContent = entry.price;
-      title.append(price);
-    }
     anchor.append(title);
     item.append(anchor);
     return item;
@@ -350,6 +329,20 @@ window.addEventListener("storage", (event) => {
   }
 });
 
+const checkoutClient = setupCheckout({
+  getQuantity: (source) => source === "cart" ? state.cart : clampQuantity(quantity.value),
+  onAvailable: () => {
+    if (panel.open && openPanelName === "cart") renderPanel("cart");
+  },
+  onPaid: (source, count) => {
+    if (source !== "cart") return;
+    state.cart = clampQuantity(state.cart - count, 0);
+    saveState();
+    if (panel.open && openPanelName === "cart") renderPanel("cart");
+  },
+});
+
+find("#offer-price").textContent = formatMoney.format(offer.unitPriceInCents / 100);
 updateQuantity(quantity.value);
 renderCounters();
 loadRelated().catch(() => {});
