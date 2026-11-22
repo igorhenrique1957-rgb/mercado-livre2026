@@ -4,13 +4,23 @@ Página em português para o Pinheiro Canadense de Natal Greycom. A oferta Black
 
 ## Executar localmente
 
-Na raiz do repositório, use um servidor de arquivos estáticos. Com Node.js, rode:
+Na raiz do projeto, execute com Node.js 22 ou 24:
 
-    npx serve .
+    npm start
 
-O servidor estático mostra a página com o checkout inativo. Para testar o endpoint de checkout na Vercel CLI, use:
+Abra http://localhost:3000. O catálogo funciona enquanto o checkout aguarda configuração. A função de pagamento fica em /api/checkout.
 
-    npx vercel dev
+## Hospedar na Namecheap
+
+1. No **File Manager** do cPanel, extraia o pacote em uma pasta da conta chamada casa-de-pinheiro, fora de public_html.
+2. Em **Setup Node.js App**, crie uma aplicação em modo **Production** com Node.js 24, ou 22 quando essa for a versão disponível.
+3. Defina **Application root** como casa-de-pinheiro, escolha o domínio ou subdomínio em **Application URL**, use a raiz do endereço e preencha **Application startup file** com server.js.
+4. Cadastre as variáveis da seção MangoFy em **Environment variables**. Inicie ou reinicie a aplicação.
+5. Confira se o domínio aponta para a hospedagem e abre com HTTPS. Verifique o produto, a oferta e o destino do botão de compra antes de divulgar o endereço.
+
+O servidor usa os módulos incluídos no Node.js. A instalação de pacotes é dispensável.
+
+[Setup Node.js App no cPanel da Namecheap](https://www.namecheap.com/support/knowledgebase/article.aspx/10047/2182/how-to-work-with-nodejs-app/)
 
 ## Configurar a MangoFy
 

@@ -40,7 +40,8 @@ function loadConfig(env) {
 function send(res, status, payload) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.status(status).json(payload);
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(payload));
 }
 
 function sameOrigin(req) {
@@ -166,7 +167,7 @@ async function createPix(req, res, api, body) {
   if (!input) return send(res, 400, { message: "Confira a quantidade, seus dados e o endereço de entrega." });
   const reference = "casa-pinheiro-" + randomUUID();
   const amount = offer.unitPriceInCents * input.quantity;
-  const forwardedIp = req.headers["x-vercel-forwarded-for"];
+  const forwardedIp = process.env.VERCEL === "1" ? req.headers["x-vercel-forwarded-for"] : "";
   const ip = typeof forwardedIp === "string" ? forwardedIp.split(",")[0].trim() : "";
   if (ip && isIP(ip)) input.customer.ip = ip;
   const payment = await askMangoFy(api, api.endpoint, {
